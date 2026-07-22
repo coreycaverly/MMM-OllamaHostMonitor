@@ -1,0 +1,17 @@
+{
+  "SECTION_SYSTEM": "GPU & Memory",
+  "MEMORY": "Memory",
+  "SWAP": "Swap",
+  "TEMP": "Temp",
+  "LOADED": "Loaded",
+  "INSTALLED": "Installed",
+  "MODEL": "Model",
+  "USAGE": "Usage",
+  "STATUS": "Status",
+  "MODELS": "models",
+  "NONE_RESIDENT": "none resident",
+  "NOT_RUNNING": "not running",
+  "EXPIRING": "expiring",
+  "OFFLINE": "offline",
+  "STALE": "stale"
+}

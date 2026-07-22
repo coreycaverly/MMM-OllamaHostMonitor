@@ -1,6 +1,6 @@
 {
   "name": "mmm-ollama-host-monitor",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MagicMirror² module that displays GPU, memory, Ollama and Hermes stats from your LLM host (e.g. a Mac Studio) over MQTT.",
   "main": "MMM-OllamaHostMonitor.js",
   "repository": {

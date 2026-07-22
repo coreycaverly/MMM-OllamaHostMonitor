@@ -11,6 +11,9 @@
  * animation so frequent metric refreshes don't flash.
  */
 Module.register("MMM-OllamaHostMonitor", {
+  // Minimum MagicMirror version (this field was introduced in 2.1.0).
+  requiresVersion: "2.1.0",
+
   defaults: {
     mqttServer: "homeassistant.local",
     mqttPort: 1883,
@@ -26,6 +29,15 @@ Module.register("MMM-OllamaHostMonitor", {
 
   getStyles() {
     return ["MMM-OllamaHostMonitor.css"];
+  },
+
+  getTranslations() {
+    return { en: "translations/en.json" };
+  },
+
+  // translate() with a graceful fallback to the key (also keeps getDom testable).
+  t(key) {
+    return this.translate ? this.translate(key) : key;
   },
 
   // Use MagicMirror's native module header so the title matches other modules
@@ -80,7 +92,7 @@ Module.register("MMM-OllamaHostMonitor", {
     if (!iso) return null;
     const secs = (new Date(iso).getTime() - Date.now()) / 1000;
     if (Number.isNaN(secs)) return null;
-    if (secs <= 0) return "expiring";
+    if (secs <= 0) return this.t("EXPIRING");
     if (secs < 90) return `${Math.round(secs)}s`;
     if (secs < 5400) return `${Math.round(secs / 60)}m`;
     return `${Math.round(secs / 3600)}h`;
@@ -137,7 +149,7 @@ Module.register("MMM-OllamaHostMonitor", {
     if (this.isStale()) {
       const badge = document.createElement("div");
       badge.className = "msm-badge";
-      badge.innerHTML = this.metrics.availability === "offline" ? "offline" : "stale";
+      badge.innerHTML = this.metrics.availability === "offline" ? this.t("OFFLINE") : this.t("STALE");
       wrapper.appendChild(badge);
     }
 
@@ -146,7 +158,7 @@ Module.register("MMM-OllamaHostMonitor", {
     const hermes = this.metrics.hermes || {};
 
     // --- GPU / memory ---
-    wrapper.appendChild(this.section("GPU &amp; Memory"));
+    wrapper.appendChild(this.section(this.t("SECTION_SYSTEM")));
 
     const gpuVal = document.createElement("div");
     gpuVal.className = "msm-inline";
@@ -174,13 +186,13 @@ Module.register("MMM-OllamaHostMonitor", {
     const memText = document.createElement("span");
     memText.innerHTML = `${this.fmt(sys.ram_used_gb)} / ${this.fmt(sys.ram_total_gb, " GB")}`;
     memVal.appendChild(memText);
-    wrapper.appendChild(this.row("Memory", memVal));
+    wrapper.appendChild(this.row(this.t("MEMORY"), memVal));
 
     if (sys.swap_used_gb) {
-      wrapper.appendChild(this.row("Swap", this.fmt(sys.swap_used_gb, " GB")));
+      wrapper.appendChild(this.row(this.t("SWAP"), this.fmt(sys.swap_used_gb, " GB")));
     }
     if (this.config.showTemps && (sys.gpu_temp_c || sys.cpu_temp_c)) {
-      wrapper.appendChild(this.row("Temp",
+      wrapper.appendChild(this.row(this.t("TEMP"),
         `GPU ${this.fmt(sys.gpu_temp_c, "°")} · CPU ${this.fmt(sys.cpu_temp_c, "°")}`));
     }
 
@@ -192,7 +204,7 @@ Module.register("MMM-OllamaHostMonitor", {
     if (ollama.up) {
       const loaded = ollama.loaded || [];
       if (loaded.length === 0) {
-        wrapper.appendChild(this.row("Loaded", `<span class="dimmed">none resident</span>`));
+        wrapper.appendChild(this.row(this.t("LOADED"), `<span class="dimmed">${this.t("NONE_RESIDENT")}</span>`));
       } else {
         loaded.slice(0, this.config.maxModels).forEach((m) => {
           const rel = this.relTime(m.expires_at);
@@ -201,22 +213,22 @@ Module.register("MMM-OllamaHostMonitor", {
         });
       }
       if (ollama.installed_count != null) {
-        wrapper.appendChild(this.row("Installed",
-          `<span class="dimmed">${ollama.installed_count} models</span>`));
+        wrapper.appendChild(this.row(this.t("INSTALLED"),
+          `<span class="dimmed">${ollama.installed_count} ${this.t("MODELS")}</span>`));
       }
     } else {
-      wrapper.appendChild(this.row("Status", `<span class="dimmed">not running</span>`));
+      wrapper.appendChild(this.row(this.t("STATUS"), `<span class="dimmed">${this.t("NOT_RUNNING")}</span>`));
     }
 
     // --- Hermes ---
     wrapper.appendChild(this.section("Hermes", !!hermes.up));
 
     if (hermes.up) {
-      if (hermes.model) wrapper.appendChild(this.row("Model", hermes.model));
-      wrapper.appendChild(this.row("Usage",
+      if (hermes.model) wrapper.appendChild(this.row(this.t("MODEL"), hermes.model));
+      wrapper.appendChild(this.row(this.t("USAGE"),
         `${this.fmt(hermes.cpu_pct, "% CPU")} · ${this.fmt(hermes.rss_gb, " GB", 2)}`));
     } else {
-      wrapper.appendChild(this.row("Status", `<span class="dimmed">not running</span>`));
+      wrapper.appendChild(this.row(this.t("STATUS"), `<span class="dimmed">${this.t("NOT_RUNNING")}</span>`));
     }
 
     return wrapper;

@@ -5,6 +5,8 @@ of the host running your local LLMs — **GPU utilization & power, unified memor
 [Ollama](https://ollama.com/) resident models + VRAM, and [Hermes](https://github.com/NousResearch/hermes-agent)
 process status**. Built for an Apple-Silicon **Mac Studio**, but works on any Mac.
 
+![MMM-OllamaHostMonitor screenshot](docs/screenshot.png)
+
 Because macOS exposes no GPU/memory metrics over HTTP — and `hermes-agent` has no
 metrics endpoint — a small **collector agent** runs on the host, gathers everything,
 and publishes it to your **MQTT broker** (the same one Home Assistant uses). This

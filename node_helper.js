@@ -12,6 +12,18 @@ module.exports = NodeHelper.create({
     this.clients = {}; // keyed by broker url so multiple instances share a socket
   },
 
+  // Called by MagicMirror on shutdown — close the MQTT connections cleanly.
+  stop() {
+    for (const key of Object.keys(this.clients)) {
+      try {
+        this.clients[key].end(true);
+      } catch (e) {
+        // ignore
+      }
+    }
+    this.clients = {};
+  },
+
   socketNotificationReceived(notification, config) {
     if (notification === "MSM_CONFIG") {
       this.connect(config);

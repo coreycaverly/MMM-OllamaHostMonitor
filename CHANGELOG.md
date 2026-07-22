@@ -3,9 +3,13 @@
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.1.0] — 2026-07-22
 
 ### Added
+- Release polish for publishing as a MagicMirror third-party module: `requiresVersion`
+  (`2.1.0`), i18n scaffolding (`getTranslations` + `translations/en.json`, all
+  user-facing labels routed through `translate()`), a `node_helper` `stop()` that
+  closes MQTT connections cleanly, and a README screenshot slot (`docs/screenshot.png`).
 - **Home Assistant MQTT discovery** (opt-in via `[homeassistant] enabled = true`).
   The agent publishes retained discovery configs so the metrics auto-register as HA
   entities under a single device — GPU/CPU usage & power, system power, memory/swap,
