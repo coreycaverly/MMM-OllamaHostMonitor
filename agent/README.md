@@ -145,6 +145,35 @@ caffeinate -is ./.venv/bin/python3 agent.py
 launchd is preferred for anything permanent — it survives reboots and restarts the
 agent on failure.
 
+## Home Assistant
+
+The agent can publish [MQTT discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery)
+configs so every metric auto-registers as a Home Assistant entity — no YAML. Enable
+it in `config.toml`:
+
+```toml
+[homeassistant]
+enabled = true
+discovery_prefix = "homeassistant"  # match HA's MQTT discovery prefix
+node_id = "ollama_host"             # used in discovery topics + unique_ids
+device_name = "Ollama Host"         # device name shown in Home Assistant
+```
+
+Restart the agent. All entities appear under one HA **device** (`device_name`) and
+share the availability topic, so they show *unavailable* when the Mac/agent stops:
+
+- **Sensors:** GPU/CPU usage & power, system power, memory used/total, swap, GPU/CPU
+  temperature, Ollama loaded-model count, Ollama installed count.
+- **Binary sensors** (`running`): Ollama, Hermes.
+- The **Ollama Loaded Models** sensor exposes the full model list (name, VRAM,
+  context length, expiry) as **attributes**, and Hermes' model/process count as
+  attributes on its binary sensor.
+
+Discovery configs are retained and re-published on every reconnect. To remove the
+entities later, set `enabled = false` and delete the retained `homeassistant/…/config`
+topics (e.g. `mosquitto_pub -r -n -t homeassistant/sensor/ollama_host/gpu_usage/config`),
+or remove the device from HA's MQTT integration.
+
 ## Troubleshooting
 
 ### Works when run manually, but not as a service

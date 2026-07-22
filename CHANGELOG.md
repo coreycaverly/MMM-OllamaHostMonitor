@@ -5,6 +5,15 @@ All notable changes to this project are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Added
+- **Home Assistant MQTT discovery** (opt-in via `[homeassistant] enabled = true`).
+  The agent publishes retained discovery configs so the metrics auto-register as HA
+  entities under a single device — GPU/CPU usage & power, system power, memory/swap,
+  temperatures, plus Ollama and Hermes running states (binary sensors). The loaded
+  Ollama models appear as **attributes** on one "Ollama Loaded Models" sensor. The
+  discovery prefix, `node_id`, and device name are configurable; entities share the
+  availability topic so they go unavailable when the Last-Will fires.
+
 ### Fixed
 - **GPU/CPU no longer disappear on some Macs.** The macmon parse was all-or-nothing:
   one unexpected field (macmon's JSON shape varies by version) threw and dropped the

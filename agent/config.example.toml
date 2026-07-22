@@ -31,3 +31,12 @@ match = "hermes"
 # Optional shell command whose stdout becomes the reported model name, e.g.
 # model_cmd = "hermes config get model"
 model_cmd = ""
+
+[homeassistant]
+# Publish Home Assistant MQTT discovery configs so the metrics auto-register as HA
+# entities (grouped under one device). Points at the same state topics above — no
+# extra data is collected. Requires HA's MQTT integration on the same broker.
+enabled = false
+discovery_prefix = "homeassistant"  # must match HA's MQTT discovery prefix
+node_id = "ollama_host"             # used in discovery topics + unique_ids
+device_name = "Ollama Host"         # device name shown in Home Assistant

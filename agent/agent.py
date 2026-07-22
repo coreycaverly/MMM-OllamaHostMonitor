@@ -35,6 +35,7 @@ except ModuleNotFoundError:  # pragma: no cover
 import paho.mqtt.client as mqtt
 
 GIB = 1024 ** 3
+VERSION = "1.1.0"
 
 
 # --------------------------------------------------------------------------- #
@@ -54,6 +55,14 @@ DEFAULTS = {
     "macmon": {"path": "macmon", "sample_interval_ms": 250},
     "ollama": {"url": "http://127.0.0.1:11434", "timeout": 3.0},
     "hermes": {"match": "hermes", "model_cmd": ""},
+    # Home Assistant MQTT discovery: publishes retained config topics so the
+    # metrics auto-register as HA entities. Off by default; enable in config.toml.
+    "homeassistant": {
+        "enabled": False,
+        "discovery_prefix": "homeassistant",
+        "node_id": "ollama_host",     # used in discovery topics + unique_ids
+        "device_name": "Ollama Host",  # device name shown in Home Assistant
+    },
 }
 
 
@@ -302,6 +311,122 @@ def log(msg: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Home Assistant MQTT discovery
+# --------------------------------------------------------------------------- #
+def build_discovery(cfg: dict) -> list[tuple[str, dict]]:
+    """Build (topic, payload) pairs for Home Assistant MQTT discovery.
+
+    Each entity points at our existing retained state topics; no extra data is
+    collected. All entities share one HA device and the availability topic, so
+    they go 'unavailable' together when the Last-Will fires. Returns [] when HA
+    discovery is disabled.
+    """
+    ha = cfg["homeassistant"]
+    if not ha.get("enabled"):
+        return []
+
+    disc = ha.get("discovery_prefix", "homeassistant").rstrip("/")
+    node = ha.get("node_id", "ollama_host")
+    prefix = cfg["topic_prefix"].rstrip("/")
+    t_system = f"{prefix}/system"
+    t_ollama = f"{prefix}/ollama"
+    t_hermes = f"{prefix}/hermes"
+
+    availability = {
+        "availability_topic": f"{prefix}/availability",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+    }
+    device = {
+        "identifiers": [node],
+        "name": ha.get("device_name", "Ollama Host"),
+        "manufacturer": "MMM-OllamaHostMonitor",
+        "model": "LLM host collector",
+        "sw_version": VERSION,
+    }
+
+    msgs: list[tuple[str, dict]] = []
+
+    def add(component: str, obj_id: str, name: str, state_topic: str, extra: dict):
+        payload = {
+            "name": name,
+            "unique_id": f"{node}_{obj_id}",
+            "object_id": f"{node}_{obj_id}",
+            "state_topic": state_topic,
+            "device": device,
+            **availability,
+            **extra,
+        }
+        msgs.append((f"{disc}/{component}/{node}/{obj_id}/config", payload))
+
+    def sensor(obj_id, name, state_topic, field, unit=None, device_class=None,
+               state_class="measurement", icon=None, diagnostic=False):
+        extra: dict = {"value_template": f"{{{{ value_json.{field} }}}}"}
+        if unit:
+            extra["unit_of_measurement"] = unit
+        if device_class:
+            extra["device_class"] = device_class
+        if state_class:
+            extra["state_class"] = state_class
+        if icon:
+            extra["icon"] = icon
+        if diagnostic:
+            extra["entity_category"] = "diagnostic"
+        add("sensor", obj_id, name, state_topic, extra)
+
+    # --- system ---
+    sensor("gpu_usage", "GPU Usage", t_system, "gpu_usage_pct", "%",
+           icon="mdi:expansion-card")
+    sensor("gpu_power", "GPU Power", t_system, "gpu_power_w", "W", "power")
+    sensor("cpu_usage", "CPU Usage", t_system, "cpu_usage_pct", "%",
+           icon="mdi:cpu-64-bit")
+    sensor("cpu_power", "CPU Power", t_system, "cpu_power_w", "W", "power")
+    sensor("sys_power", "System Power", t_system, "sys_power_w", "W", "power")
+    sensor("memory_used", "Memory Used", t_system, "ram_used_gb", "GB", "data_size")
+    sensor("memory_total", "Memory Total", t_system, "ram_total_gb", "GB",
+           "data_size", state_class=None, diagnostic=True)
+    sensor("swap_used", "Swap Used", t_system, "swap_used_gb", "GB", "data_size")
+    sensor("gpu_temp", "GPU Temperature", t_system, "gpu_temp_c", "°C", "temperature")
+    sensor("cpu_temp", "CPU Temperature", t_system, "cpu_temp_c", "°C", "temperature")
+
+    # --- ollama ---
+    add("binary_sensor", "ollama_status", "Ollama", t_ollama, {
+        "device_class": "running",
+        "payload_on": "ON", "payload_off": "OFF",
+        "value_template": "{{ 'ON' if value_json.up else 'OFF' }}",
+    })
+    # One sensor: state = number of loaded models, with the model list (and version /
+    # installed count) exposed as attributes.
+    add("sensor", "ollama_models", "Ollama Loaded Models", t_ollama, {
+        "value_template": "{{ value_json.loaded | length }}",
+        "state_class": "measurement",
+        "unit_of_measurement": "models",
+        "icon": "mdi:brain",
+        "json_attributes_topic": t_ollama,
+        "json_attributes_template":
+            "{{ {'models': value_json.loaded, 'version': value_json.version, "
+            "'installed': value_json.installed_count} | tojson }}",
+    })
+    sensor("ollama_installed", "Ollama Models Installed", t_ollama, "installed_count",
+           "models", icon="mdi:database", state_class=None, diagnostic=True)
+
+    # --- hermes ---
+    add("binary_sensor", "hermes_status", "Hermes", t_hermes, {
+        "device_class": "running",
+        "payload_on": "ON", "payload_off": "OFF",
+        "value_template": "{{ 'ON' if value_json.up else 'OFF' }}",
+        "json_attributes_topic": t_hermes,
+        "json_attributes_template":
+            "{{ {'model': value_json.model, 'processes': value_json.proc_count} | tojson }}",
+    })
+    sensor("hermes_cpu", "Hermes CPU", t_hermes, "cpu_pct", "%",
+           icon="mdi:cpu-64-bit")
+    sensor("hermes_memory", "Hermes Memory", t_hermes, "rss_gb", "GB", "data_size")
+
+    return msgs
+
+
+# --------------------------------------------------------------------------- #
 # MQTT
 # --------------------------------------------------------------------------- #
 def make_client(cfg: dict, avail_topic: str) -> mqtt.Client:
@@ -344,6 +469,7 @@ def main() -> int:
     _macmon_banner(cfg)
 
     client = make_client(cfg, avail_topic)
+    discovery = build_discovery(cfg)
     running = {"v": True}
 
     def stop(*_):
@@ -351,10 +477,20 @@ def main() -> int:
     signal.signal(signal.SIGINT, stop)
     signal.signal(signal.SIGTERM, stop)
 
+    # Publish availability + HA discovery on every (re)connect so entities survive
+    # broker restarts. Signature tolerates paho 1.x and 2.x callback shapes.
+    def on_connect(cl, *_a):
+        cl.publish(avail_topic, "online", qos=1, retain=True)
+        for topic, payload in discovery:
+            cl.publish(topic, json.dumps(payload), qos=1, retain=True)
+        if discovery:
+            log(f"published {len(discovery)} Home Assistant discovery config(s) "
+                f"under {cfg['homeassistant']['discovery_prefix']}/")
+    client.on_connect = on_connect
+
     log(f"connecting to mqtt {cfg['mqtt']['host']}:{cfg['mqtt']['port']}")
     client.connect(cfg["mqtt"]["host"], int(cfg["mqtt"]["port"]), keepalive=60)
     client.loop_start()
-    client.publish(avail_topic, "online", qos=1, retain=True)
     log(f"publishing to {prefix}/{{system,ollama,hermes}} every {interval}s")
 
     try:

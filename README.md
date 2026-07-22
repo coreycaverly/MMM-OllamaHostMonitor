@@ -133,9 +133,10 @@ All payloads are retained JSON published by the agent under `topicPrefix`:
 
 ### Bonus: Home Assistant
 
-Because these are plain retained MQTT topics, you can surface them in Home
-Assistant with a few `mqtt:` sensor entries pointing at the same topics — no extra
-collection needed. (Automatic MQTT discovery is on the roadmap; see the agent README.)
+The agent has built-in **Home Assistant MQTT discovery** — flip `[homeassistant]
+enabled = true` in its config and every metric auto-registers as an HA entity under
+one device (loaded models exposed as attributes on a single sensor). No extra
+collection, same broker. See [agent/README.md](agent/README.md#home-assistant).
 
 ---
 
