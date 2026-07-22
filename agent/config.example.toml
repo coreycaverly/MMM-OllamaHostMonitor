@@ -28,8 +28,9 @@ timeout = 3.0
 # Case-insensitive substring matched against process command lines (pgrep -i -f).
 # Works for both the hermes CLI/gateway and the Hermes.app desktop app.
 match = "hermes"
-# Optional shell command whose stdout becomes the reported model name, e.g.
-# model_cmd = "hermes config get model"
+# Optional shell command whose first stdout line becomes the reported model name.
+# Use a full path to any binary (the launchd PATH is minimal) and emit just the value,
+# e.g.  model_cmd = "$HOME/.local/bin/hermes config get model | awk '/^default:/{print $2}'"
 model_cmd = ""
 
 [homeassistant]

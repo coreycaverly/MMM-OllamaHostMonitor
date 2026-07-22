@@ -282,8 +282,12 @@ def collect_hermes(cfg: dict) -> dict:
     model_cmd = cfg["hermes"].get("model_cmd")
     if model_cmd:
         try:
-            out["model"] = subprocess.check_output(
-                model_cmd, shell=True, text=True, timeout=5).strip() or None
+            # Capture stderr too so a misconfigured command (e.g. a binary not on
+            # the launchd PATH) can't spam the agent log. Use the first output line.
+            r = subprocess.run(model_cmd, shell=True, text=True, timeout=5,
+                               capture_output=True)
+            first = next((ln.strip() for ln in r.stdout.splitlines() if ln.strip()), "")
+            out["model"] = first or None
         except Exception:  # noqa: BLE001
             pass
     return out
