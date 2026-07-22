@@ -5,6 +5,15 @@ All notable changes to this project are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Fixed
+- **GPU/CPU no longer disappear on some Macs.** The macmon parse was all-or-nothing:
+  one unexpected field (macmon's JSON shape varies by version) threw and dropped the
+  agent to the memory-only `vm_stat` fallback, blanking GPU *and* CPU. Each field is
+  now parsed independently, CPU usage falls back to the E/P-core clusters when
+  `cpu_usage_pct` is absent, and the agent logs a startup banner + warnings so a
+  missing/failing macmon is obvious. The published `source` field (`macmon`/`vm_stat`)
+  makes the active path visible.
+
 ### Changed
 - **Fixed flashing on refresh.** Metric updates now apply without the fade
   animation, and identical retained payloads are skipped, so live data refreshes

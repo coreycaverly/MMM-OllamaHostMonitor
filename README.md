@@ -145,7 +145,7 @@ collection needed. (Automatic MQTT discovery is on the roadmap; see the agent RE
 |---------|-------|
 | Card shows **offline/stale** | Is the agent running on the Mac? `mosquitto_sub -t '<prefix>/#' -v` should show updates. |
 | **No card at all** | `npm install` run in the module folder? Check MagicMirror logs for `[MMM-OllamaHostMonitor]`. |
-| **GPU shows —** | `macmon` installed and on the agent's `PATH`? (launchd PATH includes `/opt/homebrew/bin`.) |
+| **GPU/CPU show — but memory works** | The agent fell back to `vm_stat` (macmon missing or unreadable). Check the `source` field in `…/system` (`macmon` vs `vm_stat`) and the agent's `err` log. See [agent/README.md](agent/README.md#no-gpucpu-usage). |
 | **Ollama "not running"** | Agent host can reach `http://127.0.0.1:11434`? Confirm `ollama serve` is up. |
 | `topicPrefix` mismatch | The module's `topicPrefix` must equal the agent's `topic_prefix`. |
 

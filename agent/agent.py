@@ -102,8 +102,22 @@ def _ratio_to_pct(v) -> float | None:
         return None
 
 
+def _ratio_from_cluster(v):
+    """macmon reports per-cluster usage as [freq, ratio]; return the ratio."""
+    if isinstance(v, (list, tuple)) and len(v) > 1:
+        return v[1]
+    if isinstance(v, (int, float)):  # some versions emit a bare ratio
+        return v
+    return None
+
+
 def collect_system(cfg: dict) -> dict:
-    """GPU/CPU/memory via macmon, with a vm_stat/sysctl fallback for memory."""
+    """GPU/CPU/memory via macmon, with a vm_stat/sysctl fallback for memory.
+
+    Each field is parsed independently: a schema quirk in one field (which varies
+    between macmon versions) must never blank out the others. We only fall back to
+    vm_stat when macmon yields no usable JSON at all.
+    """
     out: dict = {
         "gpu_usage_pct": None, "gpu_power_w": None,
         "cpu_usage_pct": None, "cpu_power_w": None, "sys_power_w": None,
@@ -112,38 +126,54 @@ def collect_system(cfg: dict) -> dict:
         "gpu_temp_c": None, "cpu_temp_c": None, "source": None,
     }
     macmon = shutil.which(cfg["macmon"]["path"]) or None
+    sample = None
     if macmon:
+        interval = int(cfg["macmon"]["sample_interval_ms"])
         try:
-            interval = int(cfg["macmon"]["sample_interval_ms"])
+            # Two samples, keep the last: the first is a warm-up and can read 0.
             proc = subprocess.run(
-                [macmon, "pipe", "-s", "1", "-i", str(interval)],
+                [macmon, "pipe", "-s", "2", "-i", str(interval)],
                 capture_output=True, text=True,
-                timeout=max(5, interval / 1000 + 5),
+                timeout=max(6, 2 * interval / 1000 + 6),
             )
-            line = next((ln for ln in proc.stdout.splitlines() if ln.strip()), "")
-            if line:
-                s = json.loads(line)
-                gpu = s.get("gpu_usage") or [None, None]
-                mem = s.get("memory", {})
-                temp = s.get("temp", {})
-                out.update(
-                    gpu_usage_pct=_ratio_to_pct(gpu[1] if len(gpu) > 1 else None),
-                    gpu_power_w=_round(s.get("gpu_power")),
-                    cpu_usage_pct=_ratio_to_pct(s.get("cpu_usage_pct")),
-                    cpu_power_w=_round(s.get("cpu_power")),
-                    sys_power_w=_round(s.get("sys_power")),
-                    ram_used_gb=_bytes_gb(mem.get("ram_usage")),
-                    ram_total_gb=_bytes_gb(mem.get("ram_total")),
-                    swap_used_gb=_bytes_gb(mem.get("swap_usage")),
-                    swap_total_gb=_bytes_gb(mem.get("swap_total")),
-                    gpu_temp_c=_round(temp.get("gpu_temp_avg")),
-                    cpu_temp_c=_round(temp.get("cpu_temp_avg")),
-                    source="macmon",
-                )
-                return out
+            lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
+            if lines:
+                sample = json.loads(lines[-1])
+            else:
+                log(f"macmon produced no output (rc={proc.returncode}); "
+                    f"stderr: {proc.stderr.strip()[:200]!r}")
         except Exception as exc:  # noqa: BLE001 - keep the loop alive
-            log(f"macmon collect failed: {exc}")
-    # Fallback: memory only, no GPU.
+            log(f"macmon run/parse failed: {exc}")
+    elif cfg["macmon"]["path"]:
+        log(f"macmon not found on PATH (looked for {cfg['macmon']['path']!r}); "
+            f"GPU/CPU unavailable, memory via vm_stat")
+
+    if sample is not None:
+        # Parse defensively, field by field.
+        out["source"] = "macmon"
+        gpu = _get(sample, "gpu_usage")
+        out["gpu_usage_pct"] = _ratio_to_pct(_ratio_from_cluster(gpu))
+        cpu_ratio = _get(sample, "cpu_usage_pct")
+        if cpu_ratio is None:  # older macmon: derive from E/P-core clusters
+            e = _ratio_from_cluster(_get(sample, "ecpu_usage"))
+            p = _ratio_from_cluster(_get(sample, "pcpu_usage"))
+            vals = [x for x in (e, p) if x is not None]
+            cpu_ratio = max(vals) if vals else None
+        out["cpu_usage_pct"] = _ratio_to_pct(cpu_ratio)
+        out["gpu_power_w"] = _round(_get(sample, "gpu_power"))
+        out["cpu_power_w"] = _round(_get(sample, "cpu_power"))
+        out["sys_power_w"] = _round(_get(sample, "sys_power"))
+        mem = _get(sample, "memory") or {}
+        out["ram_used_gb"] = _bytes_gb(mem.get("ram_usage"))
+        out["ram_total_gb"] = _bytes_gb(mem.get("ram_total"))
+        out["swap_used_gb"] = _bytes_gb(mem.get("swap_usage"))
+        out["swap_total_gb"] = _bytes_gb(mem.get("swap_total"))
+        temp = _get(sample, "temp") or {}
+        out["gpu_temp_c"] = _round(temp.get("gpu_temp_avg"))
+        out["cpu_temp_c"] = _round(temp.get("cpu_temp_avg"))
+        return out
+
+    # No usable macmon data: fall back to memory-only via vm_stat/sysctl.
     try:
         total = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]))
         out["ram_total_gb"] = round(total / GIB, 1)
@@ -152,6 +182,11 @@ def collect_system(cfg: dict) -> dict:
     except Exception as exc:  # noqa: BLE001
         log(f"memory fallback failed: {exc}")
     return out
+
+
+def _get(d, key):
+    """Safe dict get that tolerates non-dict input."""
+    return d.get(key) if isinstance(d, dict) else None
 
 
 def _vm_stat_used_gb() -> float | None:
@@ -284,11 +319,29 @@ def make_client(cfg: dict, avail_topic: str) -> mqtt.Client:
     return client
 
 
+def _macmon_banner(cfg: dict) -> None:
+    """Log macmon presence/version once at startup — the usual cause of missing
+    GPU/CPU is macmon not being found (e.g. wrong PATH under launchd)."""
+    path = shutil.which(cfg["macmon"]["path"])
+    if not path:
+        log(f"WARNING: macmon not found (path={cfg['macmon']['path']!r}); "
+            f"GPU/CPU will be empty. Install via `brew install macmon` and ensure "
+            f"its dir is on PATH (launchd PATH includes /opt/homebrew/bin).")
+        return
+    try:
+        ver = subprocess.check_output([path, "--version"], text=True, timeout=5).strip()
+    except Exception:  # noqa: BLE001
+        ver = "unknown version"
+    log(f"macmon: {path} ({ver})")
+
+
 def main() -> int:
     cfg = load_config()
     prefix = cfg["topic_prefix"].rstrip("/")
     avail_topic = f"{prefix}/availability"
     interval = float(cfg["interval"])
+
+    _macmon_banner(cfg)
 
     client = make_client(cfg, avail_topic)
     running = {"v": True}

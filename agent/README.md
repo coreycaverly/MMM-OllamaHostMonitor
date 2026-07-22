@@ -124,6 +124,36 @@ caffeinate -is ./.venv/bin/python3 agent.py
 launchd is preferred for anything permanent — it survives reboots and restarts the
 agent on failure.
 
+## Troubleshooting
+
+### No GPU/CPU usage
+
+GPU, CPU and memory all come from the same `macmon` sample. If **memory shows but
+GPU/CPU are blank**, the agent didn't get usable `macmon` output and fell back to
+`vm_stat` (memory only). Diagnose:
+
+1. Check the `source` field the agent publishes on `…/system` — `macmon` means it's
+   working, `vm_stat` means the fallback is active:
+   ```bash
+   mosquitto_sub -h <broker> -t 'ollama-host/metrics/system' -C 1 | python3 -m json.tool
+   ```
+2. Look at the agent log — the startup banner reports the macmon path/version, and a
+   warning is logged if it's missing or errors:
+   ```bash
+   grep -i macmon /tmp/ollama-host-monitor.err.log
+   ```
+3. Run macmon directly on the Mac as the same user the agent runs as:
+   ```bash
+   macmon pipe -s 1 | python3 -m json.tool
+   ```
+
+Common causes: `macmon` not installed (`brew install macmon`); not on `PATH` under
+launchd (the plist sets `PATH` to include `/opt/homebrew/bin` — adjust if Homebrew
+lives elsewhere, e.g. Intel `/usr/local/bin`). The parser tolerates macmon
+version/schema differences field-by-field, so a single odd field no longer blanks the
+rest — if you still see gaps, please open an issue with your `macmon --version` and a
+sample line.
+
 ## Notes
 
 - **Degrades gracefully.** If `macmon` is missing it falls back to `vm_stat`/`sysctl`
