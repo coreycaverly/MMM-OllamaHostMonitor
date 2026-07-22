@@ -1,102 +1,98 @@
+/* MMM-OllamaHostMonitor
+ *
+ * Styling follows MagicMirror conventions:
+ *  - colors come from MM theme variables (--color-text*, with fallbacks) so a
+ *    user's custom.css / theme is respected;
+ *  - sizes are relative (em, and the MM `.small` class the wrapper carries) so
+ *    the module scales with the configured font size instead of fixed pixels;
+ *  - alignment is left to the region (top_left is left-aligned, top_right right-
+ *    aligned, etc.) — rows use flexbox and work either way.
+ */
+
 .MMM-OllamaHostMonitor .msm-wrapper {
-  --msm-accent: #7fd1ff;
-  min-width: 260px;
+  /* `.small` (added in JS) sets the base font-size; everything below is em-relative */
+  min-width: 11em;
+  max-width: 22em;
+  line-height: 1.45;
   text-align: left;
-  transition: opacity 0.4s ease;
 }
 
 .MMM-OllamaHostMonitor .msm-stale {
   opacity: 0.45;
+  transition: opacity 0.4s ease;
 }
 
-.MMM-OllamaHostMonitor .msm-header {
-  font-size: 16px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 6px;
+/* Section headers — bright, uppercase, with an optional status dot */
+.MMM-OllamaHostMonitor .msm-section {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.MMM-OllamaHostMonitor .msm-offline-tag {
-  font-size: 11px;
-  font-weight: 400;
-  color: #ff6b6b;
-  border: 1px solid #ff6b6b;
-  border-radius: 3px;
-  padding: 0 5px;
-  text-transform: lowercase;
-  letter-spacing: 0;
-}
-
-.MMM-OllamaHostMonitor .msm-section-title {
-  font-size: 12px;
+  gap: 0.45em;
+  font-size: 0.82em;
   font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--msm-accent);
-  margin: 8px 0 3px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  color: var(--color-text-bright, #fff);
+  margin: 0.6em 0 0.15em;
 }
 
+.MMM-OllamaHostMonitor .msm-section:first-of-type {
+  margin-top: 0;
+}
+
+/* Label / value rows */
 .MMM-OllamaHostMonitor .msm-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  font-size: 13px;
-  line-height: 1.6;
+  gap: 1em;
 }
 
 .MMM-OllamaHostMonitor .msm-label {
-  color: #cfcfcf;
+  color: var(--color-text-dimmed, #666);
   white-space: nowrap;
 }
 
 .MMM-OllamaHostMonitor .msm-value {
-  color: #fff;
+  color: var(--color-text-bright, #fff);
   text-align: right;
   white-space: nowrap;
-}
-
-.MMM-OllamaHostMonitor .msm-dim {
-  color: #888;
-  font-size: 11px;
 }
 
 .MMM-OllamaHostMonitor .msm-inline {
   display: flex;
   align-items: center;
-  gap: 8px;
   justify-content: flex-end;
+  gap: 0.55em;
 }
 
+/* Usage bar — scales with font size */
 .MMM-OllamaHostMonitor .msm-bar {
-  width: 70px;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
+  width: 4.5em;
+  height: 0.4em;
+  background: rgba(127, 127, 127, 0.35);
+  border-radius: 0.2em;
   overflow: hidden;
+  flex: 0 0 auto;
 }
 
 .MMM-OllamaHostMonitor .msm-bar-fill {
   height: 100%;
-  background: var(--msm-accent);
-  border-radius: 3px;
-  transition: width 0.5s ease;
+  width: 0;
+  background: var(--color-text-bright, #fff);
+  opacity: 0.8;
+  border-radius: 0.2em;
+  transition: width 0.6s ease;
 }
 
 .MMM-OllamaHostMonitor .msm-bar-fill.msm-hot {
-  background: #ff6b6b;
+  background: #ff5f56;
+  opacity: 1;
 }
 
+/* Up/down status dots */
 .MMM-OllamaHostMonitor .msm-dot {
-  width: 8px;
-  height: 8px;
+  width: 0.5em;
+  height: 0.5em;
   border-radius: 50%;
   display: inline-block;
   flex: 0 0 auto;
@@ -104,9 +100,23 @@
 
 .MMM-OllamaHostMonitor .msm-up {
   background: #4cd964;
-  box-shadow: 0 0 5px #4cd964;
+  box-shadow: 0 0 0.3em #4cd964;
 }
 
 .MMM-OllamaHostMonitor .msm-down {
-  background: #555;
+  background: var(--color-text-dimmed, #555);
+}
+
+/* offline / stale badge */
+.MMM-OllamaHostMonitor .msm-badge {
+  display: inline-block;
+  font-size: 0.75em;
+  line-height: 1.4;
+  color: #ff5f56;
+  border: 1px solid #ff5f56;
+  border-radius: 0.25em;
+  padding: 0 0.4em;
+  margin-bottom: 0.35em;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
 }

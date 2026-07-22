@@ -33,6 +33,12 @@ The module holds **no polling timer** — it subscribes once and updates as reta
 messages arrive, so the card fills in instantly on MagicMirror startup and greys
 out (via an MQTT Last-Will) if the host or agent stops publishing.
 
+**Native look & feel:** the title uses MagicMirror's standard module header, colors
+come from the active theme (`--color-text*`), and sizing is relative — so it scales
+with your configured font size and drops into any region (`top_left`, `top_right`,
+`middle_center`, …). Updates are applied without a fade, so live metrics refresh
+smoothly instead of flashing.
+
 ## What you see
 
 - **GPU & Memory** — GPU utilization (bar) + power draw, CPU usage + power,
@@ -106,7 +112,7 @@ Then add the block below to `~/MagicMirror/config/config.js`.
 | `mqttPort` | `1883` | MQTT broker port |
 | `mqttUser` / `mqttPassword` | `""` | Broker credentials, if any |
 | `topicPrefix` | `ollama-host/metrics` | Must match the agent's `topic_prefix` |
-| `title` | `Mac Studio` | Card heading |
+| `title` | `Mac Studio` | Rendered as the standard MagicMirror module header. Set `""` to hide, or use MM's own `header:` key to override. |
 | `staleAfter` | `30` | Seconds without data before greying out |
 | `showCpu` | `true` | Show the CPU usage/power row |
 | `showTemps` | `true` | Show GPU/CPU temperatures |

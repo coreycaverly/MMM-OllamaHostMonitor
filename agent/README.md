@@ -45,16 +45,84 @@ Verify from any machine on the network:
 mosquitto_sub -h <broker> -t 'ollama-host/metrics/#' -v
 ```
 
-## Run at login (launchd)
+## Run as a background service (launchd)
 
-```bash
-# edit the /Users/YOU/... paths inside the plist first
-cp com.user.ollamahostmonitor.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
-# logs: /tmp/ollama-host-monitor.{out,err}.log
+On macOS the right way to run a background service is a **launchd LaunchAgent**.
+The included [`com.user.ollamahostmonitor.plist`](com.user.ollamahostmonitor.plist)
+runs the agent at login, restarts it if it crashes (`KeepAlive`), and writes logs
+to `/tmp`. It runs as *your* user (a LaunchAgent, not a system-wide LaunchDaemon),
+which is what `macmon` and the Hermes/Ollama process checks need.
+
+### 1. Edit the plist
+
+Open `com.user.ollamahostmonitor.plist` and replace every `/Users/YOU/...` path so
+they point at your install — the venv Python, `agent.py`, and `config.toml`:
+
+```xml
+<string>/Users/you/MMM-OllamaHostMonitor/agent/.venv/bin/python3</string>
+<string>/Users/you/MMM-OllamaHostMonitor/agent/agent.py</string>
+...
+<key>MSM_CONFIG</key>
+<string>/Users/you/MMM-OllamaHostMonitor/agent/config.toml</string>
 ```
 
-`KeepAlive` restarts the agent if it crashes; `RunAtLoad` starts it at login.
+The `PATH` entry already includes `/opt/homebrew/bin` so the `macmon` binary is
+found. (Prefer env vars over a config file? You can add `MSM_MQTT_HOST` etc. to the
+`EnvironmentVariables` dict instead of pointing at a `config.toml`.)
+
+### 2. Install and start it
+
+```bash
+cp com.user.ollamahostmonitor.plist ~/Library/LaunchAgents/
+
+# modern launchctl (macOS 11+):
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
+launchctl kickstart -p gui/$(id -u)/com.user.ollamahostmonitor   # start now
+
+# …or the classic equivalent that still works everywhere:
+# launchctl load ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
+```
+
+### 3. Verify / manage
+
+```bash
+launchctl print gui/$(id -u)/com.user.ollamahostmonitor | grep -E 'state|pid'   # running?
+tail -f /tmp/ollama-host-monitor.err.log                                        # live logs
+mosquitto_sub -h <broker> -t 'ollama-host/metrics/#' -v                         # data flowing?
+```
+
+Manage the service:
+
+```bash
+# stop temporarily
+launchctl kill SIGTERM gui/$(id -u)/com.user.ollamahostmonitor
+
+# reload after editing the plist or upgrading the agent
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
+
+# remove it entirely
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
+rm ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
+```
+
+> **Headless Macs:** a LaunchAgent needs a user session. If the Mac Studio runs
+> without anyone logged in, enable auto-login (System Settings → Users & Groups →
+> Automatic login) so the agent starts on boot, or convert the plist to a system
+> LaunchDaemon in `/Library/LaunchDaemons/` (runs as root — set a `UserName` key
+> and a full `PATH`, and note the agent will then measure system-wide processes).
+
+### Alternative: quick foreground / tmux
+
+For a quick always-on setup without launchd you can run it under `caffeinate`
+(keeps the Mac awake) inside `tmux`/`screen`:
+
+```bash
+caffeinate -is ./.venv/bin/python3 agent.py
+```
+
+launchd is preferred for anything permanent — it survives reboots and restarts the
+agent on failure.
 
 ## Notes
 
