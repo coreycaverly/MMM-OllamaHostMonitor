@@ -25,9 +25,12 @@ All notable changes to this project are documented here. This project adheres to
 - Module pauses its refresh timer on `suspend()` and resumes on `resume()`.
 
 ### Added
-- Expanded collector docs: running the agent as a launchd background service
-  (bootstrap/kickstart/bootout, logs, headless-Mac notes, and a caffeinate/tmux
-  alternative).
+- `agent/install-service.sh` — one-command launchd installer that fills the plist
+  paths from its own location, validates, and (re)loads the service. Avoids the
+  hand-edited-plist pitfall where the service silently never loads.
+- Troubleshooting for "works manually but not as a service" (validate/size-check the
+  installed plist), and expanded collector docs: running as a launchd background
+  service (bootstrap/kickstart/bootout, logs, headless-Mac notes, caffeinate/tmux).
 
 ## [1.0.0] — 2026-07-22
 

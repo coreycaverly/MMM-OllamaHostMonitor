@@ -53,15 +53,35 @@ runs the agent at login, restarts it if it crashes (`KeepAlive`), and writes log
 to `/tmp`. It runs as *your* user (a LaunchAgent, not a system-wide LaunchDaemon),
 which is what `macmon` and the Hermes/Ollama process checks need.
 
-### 1. Edit the plist
+### Recommended: use the installer script
 
-Open `com.user.ollamahostmonitor.plist` and replace every `/Users/YOU/...` path so
-they point at your install — the venv Python, `agent.py`, and `config.toml`:
+The plist ships with `/Users/YOU/...` placeholder paths. Rather than hand-editing
+it, run the installer — it fills in the real paths (from its own location),
+validates the result, copies it into `~/Library/LaunchAgents/`, and (re)loads the
+service:
+
+```bash
+cd MMM-OllamaHostMonitor/agent
+./install-service.sh
+```
+
+That's it. Skip to [Verify / manage](#3-verify--manage) below. The rest of this
+section documents the manual steps the script performs.
+
+> ⚠️ **Do not** copy the abbreviated XML snippet below into the plist file — it's an
+> excerpt (note the `...`), not a complete plist. Editing the real
+> `com.user.ollamahostmonitor.plist` is what the script does for you.
+
+### 1. Edit the plist (manual)
+
+Open the real `com.user.ollamahostmonitor.plist` file and replace every
+`/Users/YOU/...` path so they point at your install — the venv Python, `agent.py`,
+and `config.toml`. These are the only lines that change (shown as an excerpt):
 
 ```xml
 <string>/Users/you/MMM-OllamaHostMonitor/agent/.venv/bin/python3</string>
 <string>/Users/you/MMM-OllamaHostMonitor/agent/agent.py</string>
-...
+<!-- ...the rest of the file stays as-is... -->
 <key>MSM_CONFIG</key>
 <string>/Users/you/MMM-OllamaHostMonitor/agent/config.toml</string>
 ```
@@ -70,10 +90,11 @@ The `PATH` entry already includes `/opt/homebrew/bin` so the `macmon` binary is
 found. (Prefer env vars over a config file? You can add `MSM_MQTT_HOST` etc. to the
 `EnvironmentVariables` dict instead of pointing at a `config.toml`.)
 
-### 2. Install and start it
+### 2. Install and start it (manual)
 
 ```bash
 cp com.user.ollamahostmonitor.plist ~/Library/LaunchAgents/
+plutil -lint ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist   # sanity check
 
 # modern launchctl (macOS 11+):
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
@@ -125,6 +146,23 @@ launchd is preferred for anything permanent — it survives reboots and restarts
 agent on failure.
 
 ## Troubleshooting
+
+### Works when run manually, but not as a service
+
+Almost always a bad plist or a service that never loaded. Check:
+
+```bash
+# Is it actually loaded and running?
+launchctl print gui/$(id -u)/com.user.ollamahostmonitor | grep -E 'state = |pid = '
+# Is the installed plist valid and complete (no /Users/YOU placeholders, ~1.5 KB)?
+plutil -lint ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
+wc -c    ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
+grep -c '/Users/YOU' ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist   # want 0
+```
+
+If the file is tiny or has placeholders, you edited/copied the wrong thing — just run
+`./install-service.sh`, which regenerates it correctly and reloads the service. No log
+files in `/tmp` at all is a sign the service never started (bad plist).
 
 ### No GPU/CPU usage
 
