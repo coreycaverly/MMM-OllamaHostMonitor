@@ -1,0 +1,13 @@
+# Node (MagicMirror module deps)
+node_modules/
+package-lock.json
+
+# Python (collector agent)
+agent/.venv/
+agent/config.toml
+__pycache__/
+*.pyc
+
+# Local
+*.log
+.DS_Store

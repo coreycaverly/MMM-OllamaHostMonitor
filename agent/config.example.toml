@@ -1,0 +1,33 @@
+# MMM-OllamaHostMonitor collector config.
+# Copy to config.toml and edit. Values shown are the built-in defaults.
+# Env vars override these: MSM_MQTT_HOST, MSM_MQTT_PORT, MSM_MQTT_USER, MSM_MQTT_PASSWORD.
+
+# Seconds between publish cycles.
+interval = 3.0
+
+# Base MQTT topic. Publishes <prefix>/system, /ollama, /hermes, /availability.
+topic_prefix = "ollama-host/metrics"
+
+[mqtt]
+host = "homeassistant.local"   # your existing broker
+port = 1883
+username = ""
+password = ""
+tls = false
+client_id = "ollama-host-monitor"
+
+[macmon]
+path = "macmon"                # or full path, e.g. /opt/homebrew/bin/macmon
+sample_interval_ms = 250       # macmon sampling window per cycle
+
+[ollama]
+url = "http://127.0.0.1:11434"
+timeout = 3.0
+
+[hermes]
+# Case-insensitive substring matched against process command lines (pgrep -i -f).
+# Works for both the hermes CLI/gateway and the Hermes.app desktop app.
+match = "hermes"
+# Optional shell command whose stdout becomes the reported model name, e.g.
+# model_cmd = "hermes config get model"
+model_cmd = ""

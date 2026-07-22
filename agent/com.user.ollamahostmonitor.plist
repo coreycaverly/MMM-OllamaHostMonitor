@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd LaunchAgent for the MMM-OllamaHostMonitor collector agent.
+
+  Edit the two paths below to match your install, then:
+    cp com.user.ollamahostmonitor.plist ~/Library/LaunchAgents/
+    launchctl load  ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
+    launchctl start com.user.ollamahostmonitor
+  To stop / reload:
+    launchctl unload ~/Library/LaunchAgents/com.user.ollamahostmonitor.plist
+
+  Uses ProgramArguments -> the venv python + agent.py. KeepAlive restarts on crash.
+  PATH includes /opt/homebrew/bin so the `macmon` binary is found.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.ollamahostmonitor</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/YOU/MMM-OllamaHostMonitor/agent/.venv/bin/python3</string>
+        <string>/Users/YOU/MMM-OllamaHostMonitor/agent/agent.py</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>MSM_CONFIG</key>
+        <string>/Users/YOU/MMM-OllamaHostMonitor/agent/config.toml</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ollama-host-monitor.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/ollama-host-monitor.err.log</string>
+</dict>
+</plist>

@@ -1,0 +1,26 @@
+{
+  "name": "mmm-ollama-host-monitor",
+  "version": "1.0.0",
+  "description": "MagicMirror² module that displays GPU, memory, Ollama and Hermes stats from your LLM host (e.g. a Mac Studio) over MQTT.",
+  "main": "MMM-OllamaHostMonitor.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coreycaverly/MMM-OllamaHostMonitor.git"
+  },
+  "keywords": [
+    "MagicMirror",
+    "MagicMirror2",
+    "ollama",
+    "hermes",
+    "mac-studio",
+    "apple-silicon",
+    "mqtt",
+    "gpu",
+    "llm"
+  ],
+  "author": "Corey Caverly",
+  "license": "MIT",
+  "dependencies": {
+    "mqtt": "^5.3.0"
+  }
+}
